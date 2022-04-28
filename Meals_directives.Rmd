@@ -1,0 +1,351 @@
+---
+title: "Meals paper analyses - Directives"
+author: "Virginia Marchman (marchman@stanford.edu) and Monica Ellwood-Lowe (mellwoodlowe@berkeley.edu"
+date: "April 16, 2022"
+output:
+  html_document: 
+   toc: true
+   toc_float: true
+---
+
+```{r, echo = F}
+library(knitr)
+opts_chunk$set(echo=TRUE, 
+               warning=FALSE, message=FALSE, 
+               cache=FALSE)
+options(width = 100)
+```
+
+This is the code to generate the analyses in Ellwood-Lowe, M. E., Mastin, J. D., Marchman, V. A., & Fernald, A. (2022) "Big boys eat their peas!": Behavior talk during mealtimes in a diverse sample of English-speaking families.
+
+Load libraries and set theme
+```{r}
+
+library(tidyverse)
+library(effsize)
+library(stargazer)
+library(psych)
+library(powerAnalysis)
+library(kableExtra)
+library(knitr)
+library(ppcor)
+
+theme_set(theme_bw())
+```
+
+
+# Data prepping
+### Load data
+```{r}
+
+Meals <- read_csv("./Meals_data_FINAL_forR.csv")
+
+Meals <- as.data.frame(Meals)
+```
+
+### Check data - sex, birthorder, age
+```{r}
+
+# Sex - 
+
+Meals %>% 
+  group_by(sex) %>% 
+  count()
+
+# birthorder
+
+Meals_birthorder <- Meals %>%
+  mutate(
+    birthgroup = case_when(
+          birthorder == 1 ~ 1,
+          birthorder == 2 ~ 2,
+          birthorder > 2 ~ 3)
+    )
+
+Meals_birthorder %>% 
+  group_by(birthgroup) %>% 
+  count()
+  
+```
+
+### Descriptive statistics - age, maternal education, SES (HI) - Table 1
+```{r}
+
+
+Meals_desc <- dplyr::select(Meals, Age18, Age24, momed, HI18Final)
+
+describe(Meals_desc)
+
+```
+
+
+```{r}
+
+# Recording lengths
+
+Meals_reclengths <- dplyr::select(Meals, SumDursecAD, SumDurSecCleaned, MEALDUR, NumPplMeal) %>%
+                                  mutate(rawlength = as.numeric(SumDursecAD/3600), 
+                                         cleanedlength = as.numeric(SumDurSecCleaned/3600),
+                                         mealLengthmins = as.numeric(MEALDUR/60))
+
+describe(Meals_reclengths)
+
+```
+
+# Correlation between all day CDS/hour and meals
+```{r}
+
+corr.test(Meals$ADCDSperhour, Meals$CDSWCMealperhour)
+
+lm_Meals_SES <- 
+  lm(formula = ADCDSperhour ~ CDSWCMealperhour + HI18Final, data = Meals)
+
+lm_Meals_SES_int <- 
+  lm(formula = ADCDSperhour ~ CDSWCMealperhour * HI18Final, data = Meals)
+
+summary(lm_Meals_SES)
+summary(lm_Meals_SES_int)
+
+anova(lm_Meals_SES, lm_Meals_SES_int)
+
+```
+
+## Descriptives of Talk measures - Table 2
+
+```{r}
+
+## Frequencies
+
+Meals_freqs <- dplyr::select(Meals, ADCDSperhour, CDSWCMealperhour, CDSUttsMealperhour,
+                      BTperhour, Directivesperhour, Instrperhour, Prohperhour, Directperhour,
+                      Indirperhour, Feedbackperhour,InformFBperhour, UninfFBperhour,
+                      PosFBperhour, NegFBperhour)
+
+describe(Meals_freqs)
+
+## Proportions
+
+Meals_props <- dplyr::select(Meals, CDSWCMealper, C_CDS_UTTper, C_BehaviorTalkPER,
+                             C_DirectivesPerBT, C_InstructionsPerDIR, C_ProhibitionsPerDIR,
+                             C_DirectPerDIR, C_IndirectPerDIR,
+                             C_FeedbackPerBT, C_InformFeedbackPerFB, C_NotInformFeedbackPerFB,
+                             C_PosFeedbackPerFB, C_NegFeedbackPerFB)
+     
+describe(Meals_props)
+
+```
+```
+
+## Descriptives for MLU-words
+
+```{r}
+
+Meals_MLU <- dplyr::select(Meals, totBTMLU, TotalDirMLU, InstructionsMLU, ProhibMLU,
+                          IndirectMLU, DirectMLU, TotFBMLU, InfFBMLU, UninfFBMLU, 
+                          PosFBMLU, NegFBMLU)
+     
+describe(Meals_MLU)
+
+```
+
+```{r}
+
+## paired sample t-tests - Directives
+
+t.test(Meals_MLU$InstructionsMLU, Meals_MLU$ProhibMLU, paired = TRUE, 
+  alternative = "two.sided")
+
+t.test(Meals_MLU$IndirectMLU, Meals_MLU$DirectMLU, paired = TRUE, 
+  alternative = "two.sided")
+
+## paired sample t-tests - Feedback
+
+t.test(Meals_MLU$InfFBMLU, Meals_MLU$UninfFBMLU, paired = TRUE, 
+  alternative = "two.sided")
+
+t.test(Meals_MLU$PosFBMLU, Meals_MLU$NegFBMLU, paired = TRUE, 
+  alternative = "two.sided")
+
+```
+
+# Correlations SES (HI) and measures of talk during meals
+
+```{r}
+## zero order
+
+cor.test(Meals$HI18Final, Meals$C_CDS_UTTper)
+cor.test(Meals$HI18Final, Meals$C_BehaviorTalkPER)
+cor.test(Meals$HI18Final, Meals$C_DirectivesPerBT)
+cor.test(Meals$HI18Final, Meals$C_InstructionsPerDIR)
+cor.test(Meals$HI18Final, Meals$C_ProhibitionsPerDIR)
+cor.test(Meals$HI18Final, Meals$C_DirectPerDIR)
+cor.test(Meals$HI18Final, Meals$C_IndirectPerDIR)
+cor.test(Meals$HI18Final, Meals$C_FeedbackPerBT)
+cor.test(Meals$HI18Final, Meals$C_InformFeedbackPerFB)
+cor.test(Meals$HI18Final, Meals$C_NotInformFeedbackPerFB)
+cor.test(Meals$HI18Final, Meals$C_PosFeedbackPerFB)
+cor.test(Meals$HI18Final, Meals$C_NegFeedbackPerFB)
+
+## partial correlations controlling for overall CDS Words/hour
+
+pcor.test(x = Meals$HI18Final, y = Meals$C_CDS_UTTper, z = Meals$CDSWCMealperhour)
+pcor.test(x = Meals$HI18Final, y = Meals$C_BehaviorTalkPER, z = Meals$CDSWCMealperhour)
+pcor.test(x = Meals$HI18Final, y = Meals$C_DirectivesPerBT, z = Meals$CDSWCMealperhour)
+pcor.test(x = Meals$HI18Final, y = Meals$C_InstructionsPerDIR, z = Meals$CDSWCMealperhour)
+pcor.test(x = Meals$HI18Final, y = Meals$C_ProhibitionsPerDIR, z = Meals$CDSWCMealperhour)
+pcor.test(x = Meals$HI18Final, y = Meals$C_DirectPerDIR, z = Meals$CDSWCMealperhour)
+pcor.test(x = Meals$HI18Final, y = Meals$C_IndirectPerDIR, z = Meals$CDSWCMealperhour)
+pcor.test(x = Meals$HI18Final, y = Meals$C_FeedbackPerBT, z = Meals$CDSWCMealperhour)
+
+```
+
+```{r}
+## must put in new dataframe since 1 person had no feedback
+
+Meals_FB <- filter(Meals, C_InformFeedbackPerFB != "NA")
+
+pcor.test(x = Meals_FB$HI18Final, y = Meals_FB$C_InformFeedbackPerFB, z = Meals_FB$CDSWCMealperhour)
+pcor.test(x = Meals_FB$HI18Final, y = Meals_FB$C_NotInformFeedbackPerFB, z = Meals_FB$CDSWCMealperhour)
+pcor.test(x = Meals_FB$HI18Final, y = Meals_FB$C_PosFeedbackPerFB, z = Meals_FB$CDSWCMealperhour)
+pcor.test(x = Meals_FB$HI18Final, y = Meals_FB$C_NegFeedbackPerFB, z = Meals_FB$CDSWCMealperhour)
+
+```
+
+```{r}
+
+## Plot between proportion behavior talk and SES
+
+theme_set(theme_bw())
+ggplot(Meals, mapping = aes(HI18Final, C_BehaviorTalkPER)) + 
+  geom_point(color = "black", size = 1.75) + 
+  geom_smooth(method = "lm") +
+  theme(text = element_text(size = 20)) + 
+  theme(panel.grid = element_blank()) +
+       # panel.grid.major.y = element_line(colour = "grey50")) +
+  labs(x = "Family SES (Hollingshead Index)", y = "Proportion\nBehavior Talk") + 
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5)) #+ 
+  #annotate("text", x = 2, y = 26.5, label = "paste(R ^ 2, \" = .23\")", parse = TRUE, size = 6) # change this R2 value for each plot
+
+ggsave("./scatterplot_behtalkxSES.jpg", height = 8, width = 11, units = "in", dpi = 300)
+
+```
+
+```{r}
+
+#Descriptives for CDI at 18 and 25 months
+
+Meals_CDI <- dplyr::select(Meals, WS18Vocab, WS24Vocab)
+
+describe(Meals_CDI)
+
+```
+
+```{r}
+
+# Vocab correlations with SES
+
+cor.test(Meals$HI18Final, Meals$WS18Vocab)
+cor.test(Meals$HI18Final, Meals$WS24Vocab)
+
+```
+
+```{r}
+
+# Zero-order correlations to vocab at 24 months
+
+cor.test(Meals$C_DirectivesPerBT, Meals$WS24Vocab)
+cor.test(Meals$C_FeedbackPerBT, Meals$WS24Vocab)
+
+cor.test(Meals$C_InstructionsPerDIR, Meals$WS24Vocab)
+cor.test(Meals$C_ProhibitionsPerDIR, Meals$WS24Vocab)
+
+cor.test(Meals$C_IndirectPerDIR, Meals$WS24Vocab)
+cor.test(Meals$C_DirectPerDIR, Meals$WS24Vocab)
+
+cor.test(Meals$C_InformFeedbackPerFB, Meals$WS24Vocab)
+cor.test(Meals$C_NotInformFeedbackPerFB, Meals$WS24Vocab)
+
+cor.test(Meals$C_PosFeedbackPerFB, Meals$WS24Vocab)
+cor.test(Meals$C_NegFeedbackPerFB, Meals$WS24Vocab)
+
+
+```
+
+# Regression models
+###  Table 3
+```{r}
+
+# covariates SES, CDS words/hour, Vocab18
+m1 <- lm(WS24Vocab ~ HI18Final + CDSWCMealperhour + WS18Vocab, data = Meals)
+
+# Adding Proportion Feedback (vs. Directives) out of all Behavior Talk
+m2 <- lm(WS24Vocab ~ HI18Final + CDSWCMealperhour + WS18Vocab +
+    C_FeedbackPerBT, data = Meals)
+
+# Adding Proportion Instructive (vs. Prohibitions) out of all Directives
+m3 <- lm(WS24Vocab ~ HI18Final + CDSWCMealperhour + WS18Vocab +
+    C_InstructionsPerDIR, data = Meals)
+
+# Adding Proportion Indirect (vs. Direct) out of all Directives
+m4 <- lm(WS24Vocab ~ HI18Final + CDSWCMealperhour + WS18Vocab + 
+    C_IndirectPerDIR, data = Meals)
+
+# comparisons
+anova(m1, m2)
+anova(m1, m3)
+anova(m1, m4)
+
+stargazer(m1, m2, m3, m4, type = "text",
+         star.char = c(".","*","**","***"),
+         star.cutoffs = c(.1, .05, .01, .001),
+         notes = c(". p<0.1; * p<0.05; ** p<0.01; *** p<0.001"),
+         notes.append = F,
+         digits = 3,
+         dep.var.labels = c("Vocabulary Size at 24 months"),
+         covariate.labels=c("SES", "CDS Words/hour",
+                            "Vocabulary Size at 18 months",
+                            "Proportion Feedback",
+                            "Proportion Instructive",
+                            "Proportion Indirect"))
+```
+
+```{r}
+
+# Partial plot
+# Proportion Indirect and Vocab at 24m (from Model 4)
+
+## Proportion indirect residuals - not including vocab at 24
+m_indirect_resid <- lm(C_IndirectPerDIR ~ HI18Final + CDSWCMealperhour +
+  WS18Vocab, data = Meals)
+resid_indirect <- resid(m_indirect_resid)
+
+# cdi residuals - not including proportion indirect
+m_vocab_resid <- lm(WS24Vocab ~ HI18Final + CDSWCMealperhour +
+  WS18Vocab, data = Meals)
+resid_vocab <- resid(m_vocab_resid)
+
+# create dataframe
+resid_vocab_indirect <- data.frame(resid_indirect, resid_vocab)
+
+# correlation
+corr_vocab_indirect <- cor.test(resid_indirect, resid_vocab)
+round(((corr_vocab_indirect$estimate)^2), digits = 2)
+round(((corr_vocab_indirect$estimate)), digits = 2)
+
+# plot
+theme_set(theme_bw())
+ggplot(resid_vocab_indirect, aes(resid_indirect, resid_vocab)) + 
+  geom_point(color = "black", size = 1.75) + 
+  geom_smooth(method = "lm") +
+  theme(text = element_text(size = 20)) + 
+  theme(panel.grid = element_blank()) +
+       # panel.grid.major.y = element_line(colour = "grey50")) +
+  labs(x = "Proportion Indirect Directives (residuals)", y = "Vocabulary Size\nat 24 months\n(residuals)") + 
+  theme(axis.title.y = element_text(angle = 0, vjust = 0.5)) #+ 
+  #annotate("text", x = 2, y = 26.5, label = "paste(R ^ 2, \" = .23\")", parse = TRUE, size = 6) # change this R2 value for each plot
+
+ggsave("./scatterplot_resid_indirect_vocab.jpg", height = 8, width = 11, units = "in", dpi = 300)
+
+```
+
+
